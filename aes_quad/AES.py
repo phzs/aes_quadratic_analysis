@@ -8,13 +8,13 @@ key_length = 4
 key_amount = 11
 
 var('x a')
+key_variables = list(var(" ".join("k%d" % i for i in xrange(8*16))))
 #k = GF(2**8, x, modulus)
-P = PolynomialRing(GF(2), x) # to enforce modulo comp.
+P = PolynomialRing(GF(2), 128+1, [x]+key_variables) # to enforce modulo comp.
 modulus = x**8 + x**4 + x**3 + x + 1
 F = GF(2**8, a, modulus)
 
 # key bit variables (8*16 for AES128)
-key_variables = var(" ".join("k%d" % i for i in xrange(8*16)))
 #var('k0 k1 k2 k3 k4 k5 k6 k7 k8 k9 k10 k11 k12 k13 k14 k15')
 
 # list of key variables: key_length 32bit-vectors
@@ -32,7 +32,7 @@ for i in xrange(16):
     polynom = F(0)
     for j in xrange(8):
         key_index = (8*i)+j
-        polynom += F(key_variables[key_index] * (F.gen()**j))
+        polynom += F(P.gen(key_index+1) * (F.gen()**j))
     key_polynomials.append(polynom)
 
 # key words

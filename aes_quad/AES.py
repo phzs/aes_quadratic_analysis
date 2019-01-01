@@ -20,14 +20,6 @@ key_variable_names = [key_char + str(i) + '_' + str(j)
 uF = PolynomialRing(F, len(key_variable_names), key_variable_names)
 
 key_coeffs = matrix(16, 8, uF.gens())
-"""
-for i in xrange(16):
-    polynom = F(0)
-    for j in xrange(8):
-        key_index = (8*i)+j
-#        polynom += F(key_variables[key_index] * (F.gen()**j))
-    key_polynomials.append(polynom)
-"""
 
 key_polynomials = []
 for i in xrange(16):

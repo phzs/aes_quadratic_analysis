@@ -5,8 +5,8 @@ block_size = 128
 # key length in words
 #   AES 128 -> N = 4
 key_length = 4
-key_amount = 11
-
+rounds = 10
+key_amount = rounds+1
 pgen = polygen(Integers(2))
 modulus = pgen()**8 + pgen()**4 + pgen()**3 + pgen() + 1
 F = FiniteField(2**8, 'a', modulus = modulus)

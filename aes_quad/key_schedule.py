@@ -35,7 +35,6 @@ class AESKeySchedule(object):
 
     def generate_W(self, K):
         result = {}
-        import pdb; pdb.set_trace()
         assert len(K) == _N
         for i in xrange(key_amount*4): # each 128-subkey consists of 4*32bit words
             if i < _N:

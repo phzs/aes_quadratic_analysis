@@ -14,5 +14,4 @@ schedule = AESKeySchedule(AES.key_polynomials)
 
 print
 print "KEY EXPANSION: W"
-for i in schedule.W:
-    print i, schedule.W[i]
+#    print i, len(schedule.W[i])

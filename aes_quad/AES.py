@@ -39,8 +39,6 @@ for i in xrange(16):
         polynomial += key_coeffs[i][j] * field.gen()**j
     key_polynomials.append(polynomial)
 
-print key_polynomials[4]
-
 # rotate a word [a b c d] to [d b c a]
 def RotWord(word):
     return vector([word[-1], word[1], word[2], word[3]])

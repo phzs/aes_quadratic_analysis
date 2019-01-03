@@ -7,25 +7,36 @@ block_size = 128
 key_length = 4
 rounds = 10
 key_amount = rounds+1
+
+"""
 pgen = polygen(Integers(2))
 modulus = pgen()**8 + pgen()**4 + pgen()**3 + pgen() + 1
 F = FiniteField(2**8, 'a', modulus = modulus)
 z = F.gen()
+"""
 
 # key bit variables (8*16 for AES128)
 key_char = 'k'
 key_variable_names = [key_char + str(i) + '_' + str(j)
                        for i in range(block_size/8) for j in range(8)]
 
-uF = PolynomialRing(F, len(key_variable_names), key_variable_names)
+"""get the polynomial ring over GF(2) with all needed variables
+to represent polynomials with unknown coefficients
+"""
+uF = PolynomialRing(GF(2), len(key_variable_names), key_variable_names)
+uF.inject_variables()
+T = PolynomialRing(uF, 'Y')
+Y = T.gen()
+field = T.quotient(Y**8+Y**4+Y**3+Y+1, 'X')
 
+"""build the 16 key polynomials (with unknown coefficients)
+"""
 key_coeffs = matrix(16, 8, uF.gens())
-
 key_polynomials = []
 for i in xrange(16):
-    polynomial = F(0)
+    polynomial = field(0)
     for j in xrange(8):
-        polynomial += key_coeffs[i][j] * F.gen()**j
+        polynomial += key_coeffs[i][j] * field.gen()**j
     key_polynomials.append(polynomial)
 
 print key_polynomials[4]

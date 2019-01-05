@@ -1,50 +1,6 @@
 from sage.all import *
+from key_schedule import AESKeySchedule
 
-# block size
-block_size = 128
-# key length in words
-#   AES 128 -> N = 4
-key_length = 4
-rounds = 10
-key_amount = rounds+1
-
-"""
-pgen = polygen(Integers(2))
-modulus = pgen()**8 + pgen()**4 + pgen()**3 + pgen() + 1
-F = FiniteField(2**8, 'a', modulus = modulus)
-z = F.gen()
-"""
-
-# key bit variables (8*16 for AES128)
-key_char = 'k'
-key_variable_names = [key_char + str(i) + '_' + str(j)
-                       for i in range(block_size/8) for j in range(8)]
-
-"""get the polynomial ring over GF(2) with all needed variables
-to represent polynomials with unknown coefficients
-"""
-uF = PolynomialRing(GF(2), len(key_variable_names), key_variable_names)
-uF.inject_variables()
-T = PolynomialRing(uF, 'Y')
-Y = T.gen()
-field = T.quotient(Y**8+Y**4+Y**3+Y+1, 'X')
-
-"""build the 16 key polynomials (with unknown coefficients)
-"""
-key_coeffs = matrix(16, 8, uF.gens())
-key_polynomials = []
-for i in xrange(16):
-    polynomial = field(0)
-    for j in xrange(8):
-        polynomial += key_coeffs[i][j] * field.gen()**j
-    key_polynomials.append(polynomial)
-
-# rotate a word [a b c d] to [d b c a]
-def RotWord(word):
-    return vector([word[-1], word[1], word[2], word[3]])
-
-def SubWord(word):
-    return vector([S(word[0]), S(word[1]), S(word[2]), S(word[3])])
 
 """
 
@@ -52,7 +8,7 @@ Byte Substitution
 
 """
 
-SBox_M = matrix(uF, [
+SBox_M = matrix(GF(2), [
         [1, 0, 0, 0, 1, 1, 1, 1],
         [1, 1, 0, 0, 0, 1, 1, 1],
         [1, 1, 1, 0, 0, 0, 1, 1],
@@ -91,36 +47,83 @@ def polynomial_from_vector(parent, input_vector):
         result += parent(coeff * parent.gen()**i)
     return result
 
-def S(polynomial):
-    #F(SBox_M * vector(vector(uF, polynom)[1::2]) + SBox_t)
-    # calculate the inverse
-    #polynomial = polynomial**(256-2)
+pgen = polygen(Integers(2))
+modulus = pgen()**8 + pgen()**4 + pgen()**3 + pgen() + 1
+gf = FiniteField(2**8, 'a', modulus=modulus)
 
-    # vector(uF, polynom) is a vector of both coefficients and generators
-    #   [1::2] ([start:stop:step]) selects only coefficients
-    if type(polynomial) == sage.rings.polynomial.multi_polynomial_libsingular.MPolynomial_libsingular:
-        coeffs = vector(uF, polynomial)[1::2]
-        #elif type(polynomial) == sage.rings.finite_rings.element_givaro.FiniteField_givaroElement:
-        #    coeffs = vector(polynom)
+class AES(SageObject):
 
-        # M * v (calculate coefficients only)
-        mult_result = [sum([SBox_M[i][j]*coeffs[j] for j in xrange(len(SBox_M.columns()))]) 
-                for i in xrange(len(SBox_M.rows()))]
+    def __init__(self, key=None, rounds=10, block_size=128):
+        self.block_size = block_size
+        self.key_length = block_size/32 # key length in 32-bit words: AES 128 -> N = 4
+        self.rounds = rounds
+        self.key_amount = rounds+1
 
-        # insert variables again
-        coeff_vector = vector([uF(mult_result[i]) for i in xrange(len(mult_result))])
-        mult_result = coeff_vector * F(vector(GF(2), [1]*8)) # ?
+        # initialize key
+        if key is not None:
+            self.key = []
+            missing_bytes = 16
+            for i in key:
+                self.key.append(gf._cache.fetch_int(ord(i)))
+                missing_bytes -= 1
+            for i in xrange(missing_bytes):
+                self.key.append(gf(0))
+            self.key_schedule = AESKeySchedule(self.key, self.key_length, self.key_amount)
+        else:
+            self.key = None
 
-        # add the vector
-        result = mult_result + SBox_t
-    else:
-        coeffs = vector(polynomial)
-        #coeffs = reverse(coeffs)
+    def encrypt(self, plaintext):
+        state = self.AddRoundKey([gf(0)] * 16, self.key)
+        for round in xrange(self.rounds):
+            #TODO perform AES round
+            print round
+        return state
 
-        mult_result = SBox_M * coeffs
-        
-        add_result = mult_result + SBox_t
+    def decrypt(self, ciphertext):
+        pass
 
-        result = polynomial_from_vector(polynomial.parent(), add_result)   
+    def get_equations(self, known_plaintext, known_ciphertext, **kwargs):
+        # key bit variables (8*16 for AES128)
+        key_char = 'k'
+        key_variable_names = [key_char + str(i) + '_' + str(j)
+                              for i in range(self.block_size/8) for j in range(8)]
 
-    return result
+        """get the polynomial ring over GF(2) with all needed variables
+        to represent polynomials with unknown coefficients
+        """
+        uF = PolynomialRing(GF(2), len(key_variable_names), key_variable_names)
+        uF.inject_variables()
+        T = PolynomialRing(uF, 'Y')
+        Y = T.gen()
+        field = T.quotient(Y**8+Y**4+Y**3+Y+1, 'X')
+
+        """build the 16 key polynomials (with unknown coefficients)
+        """
+        key_coeffs = matrix(16, 8, uF.gens())
+        key_polynomials = []
+        for i in xrange(16):
+            polynomial = field(0)
+            for j in xrange(8):
+                polynomial += key_coeffs[i][j] * field.gen()**j
+            key_polynomials.append(polynomial)
+        #key_schedule = AESKeySchedule(key_polynomials, self.key_length, self.key_amount)
+
+    def AddRoundKey(self, state, key):
+        return [(state[i] + key[i]) for i in xrange(self.block_size / 8)]
+
+    @staticmethod
+    def SubBytes(state):
+        def _left_shift(polynomial, shift_by):
+            """Performs a circular left shift on a givaro element"""
+            new_int_value = int(polynomial._int_repr()) << shift_by
+            new_int_value %= (len(gf)-1)
+            return gf._cache.fetch_int(new_int_value)
+        result = []
+        for poly in state:
+            if poly is not gf(0):
+                inverse = poly ** -1
+            else:
+                inverse = gf(0)
+            sbox_result = inverse + _left_shift(inverse, 1) + _left_shift(inverse, 2) + _left_shift(inverse, 3) + _left_shift(inverse, 4) + gf._cache.fetch_int(0x63)
+            result.append(sbox_result)
+        return result

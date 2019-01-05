@@ -1,17 +1,11 @@
 #!/usr/bin/env sage
 from sage.all import *
-from sage.rings.finite_rings.finite_field_givaro import *
-from key_schedule import *
-import AES
+from AES import AES
 
-print "-"*13
-print "| AES ", AES.block_size, " |"
-print "-"*13
-print "modulus: ", AES.field.modulus()
-print "generator:", AES.field.gen()
+instance = AES(key="test", rounds=1, block_size=128)
 
-schedule = AESKeySchedule(AES.key_polynomials)
+plaintext = "some message"
+ciphertext = instance.encrypt(plaintext)
+#assert instance.decrypt(ciphertext) is plaintext
 
-print
-print "KEY EXPANSION: W"
-#    print i, len(schedule.W[i])
+print instance.get_equations(ciphertext, plaintext, rounds=1)

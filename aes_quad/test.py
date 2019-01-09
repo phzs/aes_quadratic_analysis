@@ -19,6 +19,20 @@ class TestKeySchedule(unittest.TestCase):
 
 class TestAES(unittest.TestCase):
 
+    def test_AddRoundKey(self):
+        instance = AES(key=("test"*3))
+        input = [gf._cache.fetch_int(i) for i in xrange(16)]
+        key = [gf._cache.fetch_int(i) for i in xrange(16)]
+        expected_result = [gf(0)] * 16
+        result = instance.AddRoundKey(input, key)
+        self.assertTrue(result == expected_result)
+
+        input = [gf._cache.fetch_int(i) for i in xrange(16)]
+        key = [gf._cache.fetch_int(i+i) for i in xrange(16)]
+        result = instance.AddRoundKey(input, key)
+        for i in xrange(len(result)):
+            self.assertTrue(result[i] == input[i] + key[i])
+
     def test_SubBytes(self):
         sbox_input = gf._cache.fetch_int(0x9a)
         expected_result = gf._cache.fetch_int(0xb8)

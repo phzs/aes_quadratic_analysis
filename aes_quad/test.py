@@ -47,6 +47,9 @@ class TestAES(unittest.TestCase):
         result = instance.SubBytesInv([sbox_input])[0]
         self.assertTrue(result == expected_result)
 
+        poly = gf._cache.fetch_int(0x99)
+        self.assertTrue(instance.SubBytesInv(instance.SubBytes([poly]))[0] == poly)
+
     def test_rc(self):
         rc = AESKeySchedule.generate_rc(11) # generates rc for 11 roundkeys
         rc_test = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36]

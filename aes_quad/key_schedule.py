@@ -60,4 +60,9 @@ class AESKeySchedule(object):
 
     def get_roundkey(self, round):
         index = round * 4
-        return self.W[index:index+4]
+        result = []
+        for i in xrange(index,index+4):
+            for poly in self.W[i]:
+                result.append(poly)
+        assert(len(result) == 16)
+        return result

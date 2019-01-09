@@ -104,11 +104,13 @@ class AES(SageObject):
         result = []
         for block in self.get_blocks(plaintext, " "):
             converted_block = [gf._cache.fetch_int(ord(entry)) for entry in block]
-            state = self.AddRoundKey(converted_block, self.key)
+            state = self.AddRoundKey(converted_block, self.key_schedule.get_roundkey(0))
             for round in xrange(self.rounds):
                 state = self.SubBytes(state)
                 state = self.ShiftRows(state)
                 state = self.MixColumns(state)
+                if round is not self.rounds:
+                    state = self.AddRoundKey(converted_block, self.key_schedule.get_roundkey(round+1))
             result += state
         return result
 
@@ -126,11 +128,13 @@ class AES(SageObject):
     def decrypt(self, ciphertext):
         result = []
         for block in self.get_blocks(ciphertext, " "):
-            state = self.AddRoundKeyInv(block, self.key)
             for round in xrange(self.rounds):
-                state = self.SubBytesInv(state)
+                state = self.SubBytesInv(block)
                 state = self.ShiftRowsInv(state)
                 state = self.MixColumnsInv(state)
+                if round is not 0:
+                    state = self.AddRoundKey(block, self.key_schedule.get_roundkey(round+1))
+            state = self.AddRoundKey(state, self.key_schedule.get_roundkey(0))
             result += state
         return result
 
@@ -162,11 +166,6 @@ class AES(SageObject):
 
     def AddRoundKey(self, state, key):
         return [(state[i] + key[i]) for i in xrange(self.block_size / 8)]
-
-    def AddRoundKeyInv(self, state, key):
-        inv_key = key
-        inv_key.reverse() # TODO better save this as a member to avoid recalculating each time
-        return self.AddRoundKey(state, inv_key)
 
     def ShiftRows(self, state):
         return self._ShiftRows(state, shift_rows_M)

@@ -1,7 +1,21 @@
 import unittest
+from sage.all import vector
 
 from AES import gf, AES
 from key_schedule import AESKeySchedule
+
+
+class TestKeySchedule(unittest.TestCase):
+
+    def test_key_words(self):
+        input = [gf._cache.fetch_int(i) for i in xrange(16)]
+        expected_result = {0: vector(input[0:4]),
+                           1: vector(input[4:8]),
+                           2: vector(input[8:12]),
+                           3: vector(input[12:16])}
+        result = AESKeySchedule.key_words(input)
+        self.assertTrue(result == expected_result)
+
 
 class TestAES(unittest.TestCase):
 

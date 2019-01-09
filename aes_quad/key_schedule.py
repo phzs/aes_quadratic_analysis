@@ -11,10 +11,17 @@ class AESKeySchedule(object):
 
     @staticmethod
     def key_words(polyList):
+        """
+        Returns chunks of 4 polynomials in a dictionary with integer keys starting from 0
+        :param polyList: list of polynomials
+        :return: dictionary of vectors of 4 polynomials for each key
+        """
         result = {}
         assert mod(len(polyList), 4) == 0
-        for i in xrange((len(polyList)/4)):
-            result[i] = vector(polyList[i:i+4])
+        index = 0
+        for i in xrange(0, len(polyList), 4):
+            result[index] = vector(polyList[i:i+4])
+            index += 1
         return result
 
     @staticmethod

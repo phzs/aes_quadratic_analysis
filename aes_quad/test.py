@@ -25,5 +25,18 @@ class TestAES(unittest.TestCase):
         # assures that rc begins with rc_test
         self.assertTrue(rc.values()[:len(rc_test)] == rc_test)
 
+    def test__left_shift(self):
+        input = 0b01000011
+        expected_result = 0b00001101
+        poly = gf._cache.fetch_int(input)
+        result = AES._left_shift(poly, 2)
+        self.assertTrue(bin(int(result._int_repr()) == expected_result))
+
+        input = 0b110011
+        expected_result = input
+        poly = gf._cache.fetch_int(input)
+        result = AES._left_shift(poly, 2)
+        self.assertTrue(bin(int(result._int_repr()) == expected_result))
+
 if __name__ == '__main__':
         unittest.main()

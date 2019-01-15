@@ -62,7 +62,7 @@ class AESKeySchedule(object):
             if i < self.key_length:
                 result[i] = K[i]
             elif i >= self.key_length and mod(i, self.key_length) == 0:
-                result[i] = result[i-self.key_length] + self.RotWord(self.SubWord(result[i - 1])) + self.rcon(i)
+                result[i] = result[i-self.key_length] + self.RotWord(self.SubWord(result[i - 1])) + self.rcon(i/self.key_length)
             elif i >= self.key_length and self.key_length > 6 and mod(i, self.key_length) == 4:
                 result[i] = result[i-self.key_length] + self.SubWord(result[i-1])
             else:

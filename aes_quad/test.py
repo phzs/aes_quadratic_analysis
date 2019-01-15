@@ -14,7 +14,7 @@ class TestKeySchedule(unittest.TestCase):
                            2: vector(input[8:12]),
                            3: vector(input[12:16])}
         result = AESKeySchedule.key_words(input)
-        self.assertTrue(result == expected_result)
+        self.assertEquals(expected_result, result)
 
     def test_generate_rc(self):
         rc = AESKeySchedule.generate_rc(11)
@@ -40,8 +40,6 @@ class TestKeySchedule(unittest.TestCase):
         pass
 
 
-
-
 class TestAES(unittest.TestCase):
 
     def test_AddRoundKey(self):
@@ -50,19 +48,20 @@ class TestAES(unittest.TestCase):
         key = [gf._cache.fetch_int(i) for i in xrange(16)]
         expected_result = [gf(0)] * 16
         result = instance.AddRoundKey(input, key)
-        self.assertTrue(result == expected_result)
+        self.assertEquals(expected_result, result)
 
         input = [gf._cache.fetch_int(i) for i in xrange(16)]
         key = [gf._cache.fetch_int(i+i) for i in xrange(16)]
         result = instance.AddRoundKey(input, key)
+        self.assertEquals(len(result), len(input))
         for i in xrange(len(result)):
-            self.assertTrue(result[i] == input[i] + key[i])
+            self.assertEquals(input[i] + key[i], result[i])
 
     def test_SubBytes(self):
         sbox_input = gf._cache.fetch_int(0x9a)
         expected_result = gf._cache.fetch_int(0xb8)
         result = AES.SubBytes([sbox_input])[0]
-        self.assertTrue(result == expected_result)
+        self.assertEquals(expected_result, result)
 
     def test_SubBytesInv(self):
         sbox_input = gf._cache.fetch_int(0xb8)
@@ -70,29 +69,41 @@ class TestAES(unittest.TestCase):
 
         instance = AES()
         result = instance.SubBytesInv([sbox_input])[0]
-        self.assertTrue(result == expected_result)
+        self.assertEquals(expected_result, result)
 
         poly = gf._cache.fetch_int(0x99)
-        self.assertTrue(instance.SubBytesInv(instance.SubBytes([poly]))[0] == poly)
+        self.assertEquals(poly, instance.SubBytesInv(instance.SubBytes([poly]))[0])
 
     def test_rc(self):
         rc = AESKeySchedule.generate_rc(11) # generates rc for 11 roundkeys
         rc_test = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36]
         # assures that rc begins with rc_test
-        self.assertTrue(rc.values()[:len(rc_test)] == rc_test)
+        self.assertEquals(rc_test, rc.values()[:len(rc_test)])
 
     def test__left_shift(self):
         input = 0b01000011
         expected_result = 0b00001101
         poly = gf._cache.fetch_int(input)
         result = AES._left_shift(poly, 2)
-        self.assertTrue(bin(int(result._int_repr()) == expected_result))
+        self.assertEquals(expected_result, int(result._int_repr()))
 
-        input = 0b110011
+        input = 0b00110011
+        expected_result = 0b11001100
+        poly = gf._cache.fetch_int(input)
+        result = AES._left_shift(poly, 2)
+        self.assertEquals(expected_result, int(result._int_repr()))
+
+        input = 0b11111111
+        expected_result = 0b0
+        poly = gf._cache.fetch_int(input)
+        result = AES._left_shift(poly, 2)
+        self.assertEquals(expected_result, int(result._int_repr()))
+
+        input = 0b0
         expected_result = input
         poly = gf._cache.fetch_int(input)
         result = AES._left_shift(poly, 2)
-        self.assertTrue(bin(int(result._int_repr()) == expected_result))
+        self.assertEquals(expected_result, int(result._int_repr()))
 
 if __name__ == '__main__':
         unittest.main()

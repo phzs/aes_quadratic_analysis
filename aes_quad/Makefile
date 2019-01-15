@@ -5,3 +5,6 @@ run:
 
 test:
 	sage -python test.py
+
+clean:
+	find -iname "*.pyc" -exec rm -v {} \;

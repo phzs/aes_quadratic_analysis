@@ -16,6 +16,31 @@ class TestKeySchedule(unittest.TestCase):
         result = AESKeySchedule.key_words(input)
         self.assertTrue(result == expected_result)
 
+    def test_generate_rc(self):
+        rc = AESKeySchedule.generate_rc(11)
+        self.assertEquals([0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36], rc.values())
+        for i in xrange(1, 11):
+            # each rc can be written as x^(i-1), where i is the round number
+            self.assertEquals(int(gf(gf.gen()**(i-1))._int_repr()), rc[i])
+
+
+    def test_RotWord(self):
+        self.assertEquals(vector([1, 2, 3, 0]), AESKeySchedule.RotWord([0, 1, 2, 3]))
+        self.assertEquals(vector([0, 0, 0, 10]), AESKeySchedule.RotWord([10, 0, 0, 0]))
+        self.assertEquals(vector([1, 1, 1, 1]), AESKeySchedule.RotWord([1, 1, 1, 1]))
+        self.assertEquals(vector([5, 3, 6, 7]), AESKeySchedule.RotWord([7, 5, 3, 6]))
+
+    def test_SubWord(self):
+        pass
+
+    def test_rcon(self):
+        pass
+
+    def test_generate_W(self):
+        pass
+
+
+
 
 class TestAES(unittest.TestCase):
 

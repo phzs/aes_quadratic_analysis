@@ -39,8 +39,12 @@ class AESKeySchedule(object):
 
     @staticmethod
     def RotWord(word):
-        """rotates a word [a b c d] to [d b c a]"""
-        return vector([word[-1], word[1], word[2], word[3]])
+        """Performs a one-byte left circular shift,
+        e.g. [a b c d] to [b c d a]
+        :param word: list of elements
+        :return: a vector of shifted input list
+        """
+        return vector([word[1], word[2], word[3], word[0]])
 
     @staticmethod
     def SubWord(word):

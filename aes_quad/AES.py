@@ -114,14 +114,17 @@ class AES(SageObject):
             result += state
         return result
 
-
-    def get_blocks(self, sequence, fillvalue=None):
+    def get_blocks(self, sequence, fill_value=None):
         """
         Returns iterable of blocks of size :self.block_size:, fills up with :fillvalue:
+        :param sequence: list of values
+        :param fill_value: value to fill in gaps (padding)
+        :return: list of blocks of size :self.block_size:
+        """
         values = list(sequence)
         size = self.block_size / 8
         while (len(values) % size) is not 0:
-            values.append(fillvalue)
+            values.append(fill_value)
 
         return (values[pos:pos + size] for pos in xrange(0, len(values), size))
 

@@ -66,11 +66,12 @@ mix_columns_inverse_M = matrix(gf, [
 
 class AES(SageObject):
 
-    def __init__(self, key=None, rounds=10, block_size=128):
+    def __init__(self, key=None, rounds=10, block_size=128, debug=False):
         self.block_size = block_size
         self.key_length = block_size/32 # key length in 32-bit words: AES 128 -> N = 4
         self.rounds = rounds
         self.key_amount = rounds+1
+        self.print_debug_output = debug
 
         # initialize key
         if key is not None:
@@ -87,28 +88,58 @@ class AES(SageObject):
 
     def encrypt(self, plaintext):
         result = []
+        self.debug("ENCRYPT")
+        self.debug("-"*40)
         for block in self._get_blocks(plaintext, " "):
+            self.debug("BLOCK")
             converted_block = [gf._cache.fetch_int(ord(entry)) for entry in block]
-            state = self.AddRoundKey(converted_block, self.key_schedule.get_roundkey(0))
+            self.debug_state("  \t", converted_block)
+            _main_key = self.key_schedule.get_roundkey(0)
+            state = self.AddRoundKey(converted_block, _main_key)
+            self.debug_state("   AddRK %d" % 0, state, key=_main_key)
             for round_num in xrange(self.rounds):
+
                 state = self.SubBytes(state)
+                self.debug_state("%d  SubBytes" % round_num, state)
+
                 state = self.ShiftRows(state)
+                self.debug_state("%d  ShiftRows" % round_num, state)
+
                 state = self.MixColumns(state)
-                if round_num is not self.rounds:
-                    state = self.AddRoundKey(converted_block, self.key_schedule.get_roundkey(round_num+1))
+                self.debug_state("%d  MixColumns" % round_num, state)
+
+                if round_num is not (self.rounds-1):
+                    _round_key = self.key_schedule.get_roundkey(round_num+1)
+                    state = self.AddRoundKey(state, _round_key)
+                    self.debug_state("%d  AddRK %d" % (round_num, round_num+1), state, key=_round_key)
             result += state
         return result
 
     def decrypt(self, ciphertext):
         result = []
-            for round_num in xrange(self.rounds):
-                state = self.SubBytesInv(block)
-                state = self.ShiftRowsInv(state)
+        for symbol in ciphertext:
+            assert(isinstance(symbol, sage.rings.finite_rings.element_givaro.FiniteField_givaroElement))
         for block in self._get_blocks(ciphertext, " "):
+            self.debug("BLOCK")
+            self.debug_state("  \t", block)
+            state = block
+            for round_num in xrange(self.rounds-1, -1, -1):
                 state = self.MixColumnsInv(state)
+                self.debug_state("%d  MixCInv" % round_num, state)
+
+                state = self.ShiftRowsInv(state)
+                self.debug_state("%d  ShiftRInv" % round_num, state)
+
+                state = self.SubBytesInv(state)
+                self.debug_state("%d  SubBInv" % round_num, state)
+
                 if round_num is not 0:
-                    state = self.AddRoundKey(block, self.key_schedule.get_roundkey(round_num+1))
-            state = self.AddRoundKey(state, self.key_schedule.get_roundkey(0))
+                    _round_key = self.key_schedule.get_roundkey(round_num)
+                    state = self.AddRoundKey(state, _round_key)
+                    self.debug_state("%d  AddRK %d" % (round_num, round_num), state, key=_round_key)
+            _main_key = self.key_schedule.get_roundkey(0)
+            state = self.AddRoundKey(state, _main_key)
+            self.debug_state("   AddRK %d" % 0, state, key=_main_key)
             result += state
         return result
 
@@ -246,3 +277,37 @@ class AES(SageObject):
                 sbox_result = gf(0)
             result.append(sbox_result)
         return result
+
+    @staticmethod
+    def state_int(state):
+        """
+        Converts a AES state into a sequence of readable numbers (base 16)
+        :param state: AES state consisting of givaro elements
+        :return: string representing the state as a sequence of numbers (base 16)
+        """
+        return " ".join([str("{:0>2x}".format(int(symbol._int_repr()))) for symbol in state])
+
+    @staticmethod
+    def state_str(state):
+        """
+        Converts a AES state into a string
+        :param state: AES state consisting of givaro elements
+        :return: string
+        """
+        def strip(char):
+            escape = False
+            if char in ('\n', '\r'):
+                escape = True
+            return '\%s' % char if escape else char
+        return r"".join([strip(chr(int(symbol._int_repr()))) for symbol in state])
+
+    def debug_state(self, description, state, **kwargs):
+        if self.print_debug_output:
+            _key = ""
+            if 'key' in kwargs:
+                _key = AES.state_int(kwargs['key'])
+            print description, "\t", AES.state_int(state), "\t", _key
+
+    def debug(self, message):
+        if self.print_debug_output:
+            print message

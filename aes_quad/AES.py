@@ -264,6 +264,13 @@ class AES(SageObject):
             result.append(sbox_result)
         return result
 
+    def SubBytesLinear(self, x):
+        def n(int_repr):
+            return gf._cache.fetch_int(int_repr)
+
+        return n(0x63) + n(0x8F) * x ^ {127} + n(0xB5) * x ^ {191} + n(0x01) * x ^ {123} + n(0xF4) * x ^ {239} + n(
+            0x25) * x ^ {247} + n(0xF9) * x ^ {251} + n(0x09) * x ^ {253} + n(0x05) * x ^ {254}
+
     def SubBytesInv(self, state):
         result = []
         for poly in state:

@@ -139,7 +139,7 @@ class AES(SageObject):
         #key_schedule = AESKeySchedule(key_polynomials, self.key_length, self.key_amount)
 
     def AddRoundKey(self, state, key):
-        return [(state[i] + key[i]) for i in xrange(self.block_size / 8)]
+        return [(state[i] + key[i]) for i in xrange(len(state))]
 
     def ShiftRows(self, state):
         result = [gf(0) for i in xrange(16)]

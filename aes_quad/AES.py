@@ -44,8 +44,8 @@ shift_rows_M = [
 shift_rows_inverse_M = [
     0, 13, 10, 7,
     4, 1, 14, 11,
-    8, 5, 2, 6,
-    7, 11, 15, 3
+    8, 5, 2, 15,
+    12, 9, 6, 3
 ]
 
 def reverse(input_vector):

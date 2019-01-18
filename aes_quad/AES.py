@@ -1,5 +1,4 @@
 from sage.all import *
-from itertools import izip_longest
 from key_schedule import AESKeySchedule
 
 """
@@ -37,7 +36,7 @@ SBox_inverse_t = vector(GF(2), [1, 0, 1, 0, 0, 0, 0, 0])
 def reverse(input_vector):
     tmp = input_vector.list()
     tmp.reverse()
-    return(vector(tmp))
+    return vector(tmp)
 
 # builds a polynomial over `parent` which has the coefficients listed in `input_vector`
 # the vector must start with the coefficient of the highest grade (high to low)
@@ -88,7 +87,7 @@ class AES(SageObject):
 
     def encrypt(self, plaintext):
         result = []
-        for block in self.get_blocks(plaintext, " "):
+        for block in self._get_blocks(plaintext, " "):
             converted_block = [gf._cache.fetch_int(ord(entry)) for entry in block]
             state = self.AddRoundKey(converted_block, self.key_schedule.get_roundkey(0))
             for round_num in xrange(self.rounds):
@@ -100,26 +99,12 @@ class AES(SageObject):
             result += state
         return result
 
-    def get_blocks(self, sequence, fill_value=None):
-        """
-        Returns iterable of blocks of size :self.block_size:, fills up with :fillvalue:
-        :param sequence: list of values
-        :param fill_value: value to fill in gaps (padding)
-        :return: list of blocks of size :self.block_size:
-        """
-        values = list(sequence)
-        size = self.block_size / 8
-        while (len(values) % size) is not 0:
-            values.append(fill_value)
-
-        return (values[pos:pos + size] for pos in xrange(0, len(values), size))
-
     def decrypt(self, ciphertext):
         result = []
-        for block in self.get_blocks(ciphertext, " "):
             for round_num in xrange(self.rounds):
                 state = self.SubBytesInv(block)
                 state = self.ShiftRowsInv(state)
+        for block in self._get_blocks(ciphertext, " "):
                 state = self.MixColumnsInv(state)
                 if round_num is not 0:
                     state = self.AddRoundKey(block, self.key_schedule.get_roundkey(round_num+1))
@@ -127,7 +112,7 @@ class AES(SageObject):
             result += state
         return result
 
-    def get_equations(self, known_plaintext, known_ciphertext, **kwargs):
+    def get_equations(self, known_plaintext, known_ciphertext):
         # key bit variables (8*16 for AES128)
         key_char = 'k'
         key_variable_names = [key_char + str(i) + '_' + str(j)
@@ -211,6 +196,20 @@ class AES(SageObject):
             concatenate the result"""
             result += list(matrix * vector(state[i:i+4]))
         return result
+
+    def _get_blocks(self, sequence, fill_value=None):
+        """
+        Returns iterable of blocks of size :self.block_size:, fills up with :fillvalue:
+        :param sequence: list of values
+        :param fill_value: value to fill in gaps (padding)
+        :return: list of blocks of size :self.block_size:
+        """
+        values = list(sequence)
+        size = self.block_size / 8
+        while (len(values) % size) is not 0:
+            values.append(fill_value)
+
+        return (values[pos:pos + size] for pos in xrange(0, len(values), size))
 
     @staticmethod
     def _left_shift(polynomial, shift_by):

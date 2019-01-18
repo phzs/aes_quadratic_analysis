@@ -268,6 +268,10 @@ class AES(SageObject):
         result = []
         for poly in state:
             # calculate the inverse affine transformation first
+            if poly is gf._cache.fetch_int(255):
+                # workaround for the special case x = 0
+                result.append(gf._cache.fetch_int(0x7d))
+                continue
             trans_result = self._left_shift(poly, 1) \
                    + self._left_shift(poly, 3) \
                    + self._left_shift(poly, 6) + gf._cache.fetch_int(0x05)

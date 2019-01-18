@@ -27,7 +27,7 @@ class AESKeySchedule(object):
     @staticmethod
     def generate_rc(key_amount):
         result = {}
-        for i in xrange(key_amount*4):
+        for i in xrange(key_amount):
             if i == 1:
                 result[i] = 1
             elif i > 1 and result[i-1] < 0x80:

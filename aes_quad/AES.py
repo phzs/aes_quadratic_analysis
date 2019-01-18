@@ -34,20 +34,6 @@ SBox_inverse_M = matrix(GF(2), [
 
 SBox_inverse_t = vector(GF(2), [1, 0, 1, 0, 0, 0, 0, 0])
 
-shift_rows_M = [
-    0, 5, 10, 15,
-    4, 9, 14, 3,
-    8, 13, 12, 7,
-    12, 1, 6, 11
-]
-
-shift_rows_inverse_M = [
-    0, 13, 10, 7,
-    4, 1, 14, 11,
-    8, 5, 2, 6,
-    7, 11, 15, 3
-]
-
 def reverse(input_vector):
     tmp = input_vector.list()
     tmp.reverse()
@@ -171,13 +157,46 @@ class AES(SageObject):
         return [(state[i] + key[i]) for i in xrange(self.block_size / 8)]
 
     def ShiftRows(self, state):
-        return self._ShiftRows(state, shift_rows_M)
+        result = [gf(0) for i in xrange(16)]
+        result[0] = state[0]
+        result[4] = state[4]
+        result[8] = state[8]
+        result[12] = state[12]
+        result[5] = state[1]
+        result[9] = state[5]
+        result[13] = state[9]
+        result[1] = state[13]
+        result[10] = state[2]
+        result[14] = state[6]
+        result[2] = state[10]
+        result[6] = state[14]
+        result[15] = state[3]
+        result[3] = state[7]
+        result[7] = state[11]
+        result[11] = state[15]
+
+        return result
 
     def ShiftRowsInv(self, state):
-        return self._ShiftRows(state, shift_rows_inverse_M)
+        result = [gf(0) for i in xrange(16)]
+        result[0] = state[0]
+        result[8] = state[8]
+        result[4] = state[4]
+        result[12] = state[12]
+        result[13] = state[1]
+        result[1] = state[5]
+        result[5] = state[9]
+        result[9] = state[13]
+        result[10] = state[2]
+        result[14] = state[6]
+        result[2] = state[10]
+        result[6] = state[14]
+        result[7] = state[3]
+        result[11] = state[7]
+        result[15] = state[11]
+        result[3] = state[15]
 
-    def _ShiftRows(self, state, indices):
-        return [state[index] for index in indices]
+        return result
 
     def MixColumns(self, state):
         return self._MixColumns(state, mix_columns_M)

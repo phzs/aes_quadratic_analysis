@@ -2,11 +2,17 @@
 from sage.all import *
 from AES import AES
 
-instance = AES(key="test", rounds=2, block_size=128)
+instance = AES(key="sometestkey", rounds=2)
 
 plaintext = "some message to encrypt"
-print "plaintext", len(plaintext)
+print "plaintext:", plaintext
+print "plaintext length:", len(plaintext)
 ciphertext = instance.encrypt(plaintext)
 
-print plaintext, "->", " ".join([str(hex(int(c._int_repr())))[2:] for c in ciphertext])
-print "<-", "".join([chr(int(c._int_repr())) for c in instance.decrypt(ciphertext)])
+print "ENCRYPTION RESULT"
+print plaintext, "->", AES.state_int(ciphertext)
+print
+print "DECRYPTION RESULT"
+decrypted_plaintext = instance.decrypt(ciphertext)
+print AES.state_int(ciphertext), "->", AES.state_str(decrypted_plaintext)
+

@@ -202,5 +202,13 @@ class TestAES(unittest.TestCase):
         result = AES._left_shift(poly, 2)
         self.assertEquals(expected_result, int(result._int_repr()))
 
+    def test_encrypt_decrypt(self):
+        instance = AES(key="sometestkey", rounds=11)
+
+        plaintext = "some message to encrypt"
+        ciphertext = instance.encrypt(plaintext)
+        decrypted_plaintext = instance.decrypt(ciphertext)
+        self.assertEquals(plaintext, AES.state_str(decrypted_plaintext))
+
 if __name__ == '__main__':
         unittest.main()

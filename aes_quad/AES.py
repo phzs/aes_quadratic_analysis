@@ -298,12 +298,12 @@ class AES(SageObject):
         :param state: AES state consisting of givaro elements
         :return: string
         """
-        def strip(char):
+        def filter(char):
             escape = False
             if char in ('\n', '\r'):
                 escape = True
             return '\%s' % char if escape else char
-        return r"".join([strip(chr(int(symbol._int_repr()))) for symbol in state])
+        return r"".join([filter(chr(int(symbol._int_repr()))) for symbol in state]).strip()
 
     def debug_state(self, description, state, **kwargs):
         if self.print_debug_output:

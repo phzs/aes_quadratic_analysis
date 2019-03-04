@@ -105,13 +105,13 @@ class AES(SageObject):
                 state = self.ShiftRows(state)
                 self.debug_state("%d  ShiftRows" % round_num, state)
 
-                state = self.MixColumns(state)
-                self.debug_state("%d  MixColumns" % round_num, state)
-
                 if round_num is not (self.rounds-1):
-                    _round_key = self.key_schedule.get_roundkey(round_num+1)
-                    state = self.AddRoundKey(state, _round_key)
-                    self.debug_state("%d  AddRK %d" % (round_num, round_num+1), state, key=_round_key)
+                    state = self.MixColumns(state)
+                    self.debug_state("%d  MixColumns" % round_num, state)
+
+                _round_key = self.key_schedule.get_roundkey(round_num+1)
+                state = self.AddRoundKey(state, _round_key)
+                self.debug_state("%d  AddRK %d" % (round_num, round_num+1), state, key=_round_key)
             result += state
         return result
 
@@ -123,9 +123,15 @@ class AES(SageObject):
             self.debug("BLOCK")
             self.debug_state("  \t", block)
             state = block
-            for round_num in xrange(self.rounds-1, -1, -1):
-                state = self.MixColumnsInv(state)
-                self.debug_state("%d  MixCInv" % round_num, state)
+            for round_num in reversed(xrange(self.rounds)):
+
+                _round_key = self.key_schedule.get_roundkey(round_num+1)
+                state = self.AddRoundKey(state, _round_key)
+                self.debug_state("%d  AddRK %d" % (round_num, round_num+1), state, key=_round_key)
+
+                if round_num is not (self.rounds-1):
+                    state = self.MixColumnsInv(state)
+                    self.debug_state("%d  MixCInv" % round_num, state)
 
                 state = self.ShiftRowsInv(state)
                 self.debug_state("%d  ShiftRInv" % round_num, state)
@@ -133,10 +139,6 @@ class AES(SageObject):
                 state = self.SubBytesInv(state)
                 self.debug_state("%d  SubBInv" % round_num, state)
 
-                if round_num is not 0:
-                    _round_key = self.key_schedule.get_roundkey(round_num)
-                    state = self.AddRoundKey(state, _round_key)
-                    self.debug_state("%d  AddRK %d" % (round_num, round_num), state, key=_round_key)
             _main_key = self.key_schedule.get_roundkey(0)
             state = self.AddRoundKey(state, _main_key)
             self.debug_state("   AddRK %d" % 0, state, key=_main_key)

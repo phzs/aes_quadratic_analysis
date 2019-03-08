@@ -115,7 +115,7 @@ class AES(SageObject):
                 state = self.ShiftRows(state)
                 self.debug_state("%d  ShiftRows" % round_num, state)
 
-                if round_num is not (self.rounds-1):
+                if round_num != (self.rounds-1):
                     state = self.MixColumns(state)
                     self.debug_state("%d  MixColumns" % round_num, state)
 
@@ -139,7 +139,7 @@ class AES(SageObject):
                 state = self.AddRoundKey(state, _round_key)
                 self.debug_state("%d  AddRK %d" % (round_num, round_num+1), state, key=_round_key)
 
-                if round_num is not (self.rounds-1):
+                if round_num != (self.rounds-1):
                     state = self.MixColumnsInv(state)
                     self.debug_state("%d  MixCInv" % round_num, state)
 
@@ -329,7 +329,7 @@ class AES(SageObject):
     def SubBytes(state):
         result = []
         for poly in state:
-            if poly is not gf(0):
+            if poly != gf(0):
                 inverse = poly ** -1
             else:
                 inverse = gf(0)

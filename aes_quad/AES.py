@@ -33,6 +33,9 @@ SBox_inverse_M = matrix(GF(2), [
 
 SBox_inverse_t = vector(GF(2), [1, 0, 1, 0, 0, 0, 0, 0])
 
+shiftrows_list = [0, 13, 10, 7, 4, 1, 14, 11, 8, 5, 2, 15, 12, 9, 6, 3]
+shiftrows_inv_list = [0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11]
+
 def reverse(input_vector):
     tmp = input_vector.list()
     tmp.reverse()
@@ -75,16 +78,23 @@ class AES(SageObject):
 
         # initialize key
         if key is not None:
-            self.key = []
-            missing_bytes = 16
-            for i in key:
-                self.key.append(gf._cache.fetch_int(ord(i)))
-                missing_bytes -= 1
-            for i in xrange(missing_bytes):
-                self.key.append(gf(0))
+            self.key = self.convert_key(key)
             self.key_schedule = AESKeySchedule(self.key, self.key_length, self.key_amount)
         else:
             self.key = None
+
+    @staticmethod
+    def convert_key(string_key):
+        key = []
+        missing_bytes = 16
+        if len(string_key) > 16:
+            print "warning: key too long"
+        for i in string_key:
+            key.append(gf._cache.fetch_int(ord(i)))
+            missing_bytes -= 1
+        for i in xrange(missing_bytes):
+            key.append(gf(0))
+        return key
 
     def encrypt(self, plaintext):
         result = []
@@ -146,6 +156,14 @@ class AES(SageObject):
         return result
 
     def get_equations(self, known_plaintext, known_ciphertext):
+        from EquationSystem import EquationSystem
+        if self.rounds != 1:
+            raise NotImplementedError("get_equations() only supports AES with one round")
+
+        equations_full = []
+        equations_addroundkey = []
+        equations_subbytes = []
+
         # key bit variables (8*16 for AES128)
         key_char = 'k'
         key_variable_names = [key_char + str(i) + '_' + str(j)
@@ -155,7 +173,7 @@ class AES(SageObject):
         to represent polynomials with unknown coefficients
         """
         uF = PolynomialRing(GF(2), len(key_variable_names), key_variable_names)
-        uF.inject_variables()
+        uF.inject_variables(verbose=False)
         T = PolynomialRing(uF, 'Y')
         Y = T.gen()
         field = T.quotient(Y**8+Y**4+Y**3+Y+1, 'X')
@@ -169,7 +187,63 @@ class AES(SageObject):
             for j in xrange(8):
                 polynomial += key_coeffs[i][j] * field.gen()**j
             key_polynomials.append(polynomial)
-        #key_schedule = AESKeySchedule(key_polynomials, self.key_length, self.key_amount)
+
+        plaintext_blocks_numerical = [i for i in self._get_blocks(known_plaintext)]
+        plaintext_polynomials = []
+        for block in plaintext_blocks_numerical:
+            for char in block:
+                int_value = 0
+                if char is not None:
+                    int_value = ord(char)
+                plaintext_polynomials.append(gf._cache.fetch_int(int_value))
+        assert(len(plaintext_polynomials) == len(known_ciphertext))
+        """
+        ciphertext_blocks = [i for i in self._get_blocks(known_ciphertext)]
+        ciphertext_polynomials = []
+        for block in ciphertext_blocks:
+            #pdb.set_trace()
+            for char in ciphertext_blocks:
+                print char
+        """
+
+        #print "before reversing vectors"
+        #eq = known_ciphertext[0] == key_polynomials[0]
+
+        # AddRoundKey
+        #print known_ciphertext[0].integer_representation()
+        #left = reverse(vector(known_ciphertext[0]))
+        #right_1 = reverse(vector(key_polynomials[0]))
+        #right_2 = reverse(vector(known_ciphertext[0])) # unter der Annahme, dass nur AddRoundKey durchgeführt wird,
+
+        #var('x') # necessary for workaround
+        #for i in xrange(8):
+            #equation = (left[i] == right_1[i] + right_2[i] + x -x) # +x-x: workaround to get an equation!
+            #print "equation%d" % i, equation
+            #print "type", type(equation)
+            #equations_addroundkey.append(equation)
+
+        # SubBytes
+        # SubBytes computes z = S(x), we need to look at 1 = xz
+        from equations import biaffine23
+
+        pdb.set_trace()
+        state = plaintext_polynomials
+        for i in xrange(16):
+            # CALCULATE INPUT STATE OF S_BOX
+            vector_x = reverse(vector(plaintext_polynomials[i]))
+            vector_x += reverse(vector(self.key_schedule.get_roundkey(0)[i])) #TODO hier auch über key schedule
+            # REVERSE CALCULATE OUTPUT STATE OF S_BOX
+            vector_z = reverse(vector(known_ciphertext[i]))
+            vector_z += reverse(vector(self.key_schedule.get_roundkey(1)[i]))
+            vector_z = vector(vector_z[shiftrows_inv_list[i]])
+
+
+            for equation in biaffine23(vector_x, vector_z):
+                equations_full.append(equation)
+
+        eqs = EquationSystem(uF, field)
+        eqs.set_equations(equations_full)
+        return eqs
 
     def AddRoundKey(self, state, key):
         return [(state[i] + key[i]) for i in xrange(len(state))]

@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 from sage.all import *
 from key_schedule import AESKeySchedule
 
@@ -96,13 +98,16 @@ class AES(SageObject):
             key.append(gf(0))
         return key
 
+    def _convert_block(self, block):
+        return [gf._cache.fetch_int(ord(entry)) for entry in block]
+
     def encrypt(self, plaintext):
         result = []
         self.debug("ENCRYPT")
         self.debug("-"*40)
         for block in self._get_blocks(plaintext, " "):
             self.debug("BLOCK")
-            converted_block = [gf._cache.fetch_int(ord(entry)) for entry in block]
+            converted_block = self._convert_block(block)
             self.debug_state("  \t", converted_block)
             _main_key = self.key_schedule.get_roundkey(0)
             state = self.AddRoundKey(converted_block, _main_key)
@@ -157,6 +162,8 @@ class AES(SageObject):
 
     def get_equations(self, known_plaintext, known_ciphertext):
         from EquationSystem import EquationSystem
+        from equations import biaffine23
+
         if self.rounds != 1:
             raise NotImplementedError("get_equations() only supports AES with one round")
 
@@ -188,15 +195,43 @@ class AES(SageObject):
                 polynomial += key_coeffs[i][j] * field.gen()**j
             key_polynomials.append(polynomial)
 
-        plaintext_blocks_numerical = [i for i in self._get_blocks(known_plaintext)]
-        plaintext_polynomials = []
-        for block in plaintext_blocks_numerical:
-            for char in block:
-                int_value = 0
-                if char is not None:
-                    int_value = ord(char)
-                plaintext_polynomials.append(gf._cache.fetch_int(int_value))
-        assert(len(plaintext_polynomials) == len(known_ciphertext))
+        # prepare ciphertext blocks
+        ciphertext_blocks = []
+        for ciphertext_block in self._get_blocks(known_ciphertext, " "):
+            ciphertext_blocks.append(ciphertext_block)
+        #plaintext_blocks_numerical = [i for i in self._get_blocks(known_plaintext)]
+        for (block_num, plaintext_block) in enumerate(self._get_blocks(known_plaintext, " ")):
+            converted_plaintext_block = self._convert_block(plaintext_block)
+
+            # step one: calculate the states (16 polynomials/bytes) from front and back
+            #        (shiftRows needs to be applied over all 16 polynomials at the time)
+            state_front = converted_plaintext_block
+            self.debug_state("state_front", state_front)
+            # AddRoundKey
+            roundkey = self.key_schedule.get_roundkey(0)
+            for i in xrange(16):
+                state_front[i] += roundkey[i]
+            self.debug_state("AddRoundKey", state_front, key=roundkey)
+
+            state_back = ciphertext_blocks[block_num]
+            self.debug_state("state_back", state_back)
+            # AddRoundKey
+            roundkey1 = self.key_schedule.get_roundkey(1)
+            for i in xrange(16):
+                state_back[i] += roundkey1[i]
+            self.debug_state("AddRoundKey1", state_front, key=roundkey1)
+            # ShiftRows^{-1}
+            state_back = self.ShiftRowsInv(state_back)
+            self.debug_state("ShiftRowsInv", state_back)
+
+            # step two: now iterate over each of the 16 polynomials/bytes and generate their equations
+            #           on coefficient level
+            for i in xrange(16):
+                vector_x = vector(state_front[i])
+                vector_z = vector(state_back[i])
+
+                for equation in biaffine23(vector_x, vector_z):
+                    equations_full.append(equation)
         """
         ciphertext_blocks = [i for i in self._get_blocks(known_ciphertext)]
         ciphertext_polynomials = []
@@ -217,29 +252,14 @@ class AES(SageObject):
 
         #var('x') # necessary for workaround
         #for i in xrange(8):
-            #equation = (left[i] == right_1[i] + right_2[i] + x -x) # +x-x: workaround to get an equation!
-            #print "equation%d" % i, equation
-            #print "type", type(equation)
-            #equations_addroundkey.append(equation)
+        #equation = (left[i] == right_1[i] + right_2[i] + x -x) # +x-x: workaround to get an equation!
+        #print "equation%d" % i, equation
+        #print "type", type(equation)
+        #equations_addroundkey.append(equation)
 
         # SubBytes
         # SubBytes computes z = S(x), we need to look at 1 = xz
-        from equations import biaffine23
 
-        pdb.set_trace()
-        state = plaintext_polynomials
-        for i in xrange(16):
-            # CALCULATE INPUT STATE OF S_BOX
-            vector_x = reverse(vector(plaintext_polynomials[i]))
-            vector_x += reverse(vector(self.key_schedule.get_roundkey(0)[i])) #TODO hier auch über key schedule
-            # REVERSE CALCULATE OUTPUT STATE OF S_BOX
-            vector_z = reverse(vector(known_ciphertext[i]))
-            vector_z += reverse(vector(self.key_schedule.get_roundkey(1)[i]))
-            vector_z = vector(vector_z[shiftrows_inv_list[i]])
-
-
-            for equation in biaffine23(vector_x, vector_z):
-                equations_full.append(equation)
 
         eqs = EquationSystem(uF, field)
         eqs.set_equations(equations_full)

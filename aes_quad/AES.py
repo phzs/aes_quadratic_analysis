@@ -381,7 +381,7 @@ class AES(SageObject):
     @staticmethod
     def state_int(state):
         """
-        Converts a AES state into a sequence of readable numbers (base 16)
+        Converts an AES state into a sequence of readable numbers (base 16)
         :param state: AES state consisting of givaro elements
         :return: string representing the state as a sequence of numbers (base 16)
         """
@@ -390,7 +390,7 @@ class AES(SageObject):
     @staticmethod
     def state_str(state):
         """
-        Converts a AES state into a string
+        Converts an AES state into a string
         :param state: AES state consisting of givaro elements
         :return: string
         """

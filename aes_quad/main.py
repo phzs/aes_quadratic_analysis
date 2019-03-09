@@ -27,7 +27,7 @@ start = time.time()
 eqs = instance.get_equations(plaintext, ciphertext)
 end = time.time()
 print "-"*80
-print "equations generated in %d seconds" % (end-start)
+print "%d equations generated in %d seconds" % (len(eqs.get_equations()), end-start)
 #for i, equation in enumerate(eqs.get_equations()):
 #    print i, equation
 

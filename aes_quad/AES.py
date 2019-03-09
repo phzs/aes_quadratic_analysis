@@ -71,17 +71,19 @@ mix_columns_inverse_M = matrix(gf, [
 
 class AES(SageObject):
 
-    def __init__(self, key=None, rounds=10, block_size=128, debug=False):
+    def __init__(self, key=None, rounds=10, block_size=128, debug=False, use_key_schedule=True):
         self.block_size = block_size
         self.key_length = block_size/32 # key length in 32-bit words: AES 128 -> N = 4
         self.rounds = rounds
         self.key_amount = rounds+1
         self.print_debug_output = debug
+        self.use_key_schedule = use_key_schedule
 
         # initialize key
         if key is not None:
             self.key = self.convert_key(key)
-            self.key_schedule = AESKeySchedule(self.key, self.key_length, self.key_amount)
+            if use_key_schedule:
+                self.key_schedule = AESKeySchedule(self.key, self.key_length, self.key_amount)
         else:
             self.key = None
 
@@ -109,7 +111,11 @@ class AES(SageObject):
             self.debug("BLOCK")
             converted_block = self._convert_block(block)
             self.debug_state("  \t", converted_block)
-            _main_key = self.key_schedule.get_roundkey(0)
+            _main_key = []
+            if self.use_key_schedule:
+                _main_key = self.key_schedule.get_roundkey(0)
+            else:
+                _main_key = self.key
             state = self.AddRoundKey(converted_block, _main_key)
             self.debug_state("   AddRK %d" % 0, state, key=_main_key)
             for round_num in xrange(self.rounds):
@@ -124,7 +130,11 @@ class AES(SageObject):
                     state = self.MixColumns(state)
                     self.debug_state("%d  MixColumns" % round_num, state)
 
-                _round_key = self.key_schedule.get_roundkey(round_num+1)
+                _round_key = []
+                if self.use_key_schedule:
+                    _round_key = self.key_schedule.get_roundkey(round_num+1)
+                else:
+                    _round_key = _main_key
                 state = self.AddRoundKey(state, _round_key)
                 self.debug_state("%d  AddRK %d" % (round_num, round_num+1), state, key=_round_key)
             result += state
@@ -140,7 +150,11 @@ class AES(SageObject):
             state = block
             for round_num in reversed(xrange(self.rounds)):
 
-                _round_key = self.key_schedule.get_roundkey(round_num+1)
+                _round_key = []
+                if self.use_key_schedule:
+                    _round_key = self.key_schedule.get_roundkey(round_num+1)
+                else:
+                    _round_key = self.key
                 state = self.AddRoundKey(state, _round_key)
                 self.debug_state("%d  AddRK %d" % (round_num, round_num+1), state, key=_round_key)
 
@@ -154,7 +168,11 @@ class AES(SageObject):
                 state = self.SubBytesInv(state)
                 self.debug_state("%d  SubBInv" % round_num, state)
 
-            _main_key = self.key_schedule.get_roundkey(0)
+            _main_key = []
+            if self.use_key_schedule:
+                _main_key = self.key_schedule.get_roundkey(0)
+            else:
+                _main_key = self.key
             state = self.AddRoundKey(state, _main_key)
             self.debug_state("   AddRK %d" % 0, state, key=_main_key)
             result += state
@@ -167,26 +185,25 @@ class AES(SageObject):
         if self.rounds != 1:
             raise NotImplementedError("get_equations() only supports AES with one round")
 
+        if self.use_key_schedule:
+            print "*** WARNING: keyschedule activated, computations may need very much time ***"
+
         equations_full = []
-        equations_addroundkey = []
-        equations_subbytes = []
 
         # key bit variables (8*16 for AES128)
         key_char = 'k'
         key_variable_names = [key_char + str(i) + '_' + str(j)
                               for i in range(self.block_size/8) for j in range(8)]
 
-        """get the polynomial ring over GF(2) with all needed variables
-        to represent polynomials with unknown coefficients
-        """
+        # define the polynomial ring over GF(2) with all needed variables
+        #   to represent polynomials with unknown coefficients
         uF = PolynomialRing(GF(2), len(key_variable_names), key_variable_names)
         uF.inject_variables(verbose=False)
         T = PolynomialRing(uF, 'Y')
         Y = T.gen()
         field = T.quotient(Y**8+Y**4+Y**3+Y+1, 'X')
 
-        """build the 16 key polynomials (with unknown coefficients)
-        """
+        # build the 16 key polynomials (with unknown coefficients)
         key_coeffs = matrix(16, 8, uF.gens())
         key_polynomials = []
         for i in xrange(16):
@@ -195,36 +212,44 @@ class AES(SageObject):
                 polynomial += key_coeffs[i][j] * field.gen()**j
             key_polynomials.append(polynomial)
 
+        if self.use_key_schedule:
+            # prepare the key schedule with variables
+            var_key_schedule = AESKeySchedule(key_polynomials, self.key_length, self.key_amount)
+            roundkey = var_key_schedule.get_roundkey(0)
+            self.debug_state("roundkey0", roundkey)
+            roundkey1 = var_key_schedule.get_roundkey(1)
+            self.debug_state("roundkey1", roundkey1)
+        else:
+            roundkey = key_polynomials
+            roundkey1 = key_polynomials
+
         # prepare ciphertext blocks
         ciphertext_blocks = []
         for ciphertext_block in self._get_blocks(known_ciphertext, " "):
             ciphertext_blocks.append(ciphertext_block)
-        #plaintext_blocks_numerical = [i for i in self._get_blocks(known_plaintext)]
+
         for (block_num, plaintext_block) in enumerate(self._get_blocks(known_plaintext, " ")):
-            converted_plaintext_block = self._convert_block(plaintext_block)
+            plaintext_block_gf = self._convert_block(plaintext_block)
+
+            # convert the polynomials from gf to the ring 'field'
+            converted_plaintext_block = [field(p) for p in plaintext_block_gf]
+            converted_ciphertext_block = [field(p) for p in ciphertext_blocks[block_num]]
 
             # step one: calculate the states (16 polynomials/bytes) from front and back
             #        (shiftRows needs to be applied over all 16 polynomials at the time)
             state_front = converted_plaintext_block
-            self.debug_state("state_front", state_front)
             # AddRoundKey
-            roundkey = self.key_schedule.get_roundkey(0)
             for i in xrange(16):
                 state_front[i] += roundkey[i]
-            self.debug_state("AddRoundKey", state_front, key=roundkey)
 
-            state_back = ciphertext_blocks[block_num]
-            self.debug_state("state_back", state_back)
+            state_back = converted_ciphertext_block
             # AddRoundKey
-            roundkey1 = self.key_schedule.get_roundkey(1)
             for i in xrange(16):
                 state_back[i] += roundkey1[i]
-            self.debug_state("AddRoundKey1", state_front, key=roundkey1)
             # ShiftRows^{-1}
             state_back = self.ShiftRowsInv(state_back)
-            self.debug_state("ShiftRowsInv", state_back)
 
-            # step two: now iterate over each of the 16 polynomials/bytes and generate their equations
+            # step two: now iterate over the 16 polynomials/bytes and generate their equations
             #           on coefficient level
             for i in xrange(16):
                 vector_x = vector(state_front[i])
@@ -232,34 +257,6 @@ class AES(SageObject):
 
                 for equation in biaffine23(vector_x, vector_z):
                     equations_full.append(equation)
-        """
-        ciphertext_blocks = [i for i in self._get_blocks(known_ciphertext)]
-        ciphertext_polynomials = []
-        for block in ciphertext_blocks:
-            #pdb.set_trace()
-            for char in ciphertext_blocks:
-                print char
-        """
-
-        #print "before reversing vectors"
-        #eq = known_ciphertext[0] == key_polynomials[0]
-
-        # AddRoundKey
-        #print known_ciphertext[0].integer_representation()
-        #left = reverse(vector(known_ciphertext[0]))
-        #right_1 = reverse(vector(key_polynomials[0]))
-        #right_2 = reverse(vector(known_ciphertext[0])) # unter der Annahme, dass nur AddRoundKey durchgeführt wird,
-
-        #var('x') # necessary for workaround
-        #for i in xrange(8):
-        #equation = (left[i] == right_1[i] + right_2[i] + x -x) # +x-x: workaround to get an equation!
-        #print "equation%d" % i, equation
-        #print "type", type(equation)
-        #equations_addroundkey.append(equation)
-
-        # SubBytes
-        # SubBytes computes z = S(x), we need to look at 1 = xz
-
 
         eqs = EquationSystem(uF, field)
         eqs.set_equations(equations_full)
@@ -340,7 +337,7 @@ class AES(SageObject):
 
     @staticmethod
     def _left_shift(polynomial, shift_by):
-        """Performs a circular left shift on a givaro element"""
+        """Performs a circular left shift on the given givaro element"""
         new_int_value = int(polynomial._int_repr()) << shift_by
         new_int_value %= (len(gf)-1)
         return gf._cache.fetch_int(new_int_value)
@@ -349,14 +346,15 @@ class AES(SageObject):
     def SubBytes(state):
         result = []
         for poly in state:
-            if poly != gf(0):
-                inverse = poly ** -1
+            if poly != poly.parent(0):
+                inverse = poly ** 254
             else:
-                inverse = gf(0)
+                inverse = poly.parent(0)
             sbox_result = inverse + AES._left_shift(inverse, 1) \
                           + AES._left_shift(inverse, 2) \
                           + AES._left_shift(inverse, 3) \
                           + AES._left_shift(inverse, 4) + gf._cache.fetch_int(0x63)
+            #TODO implement variable friendly version of affine transformation
             result.append(sbox_result)
         return result
 

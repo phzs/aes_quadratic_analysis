@@ -1,6 +1,7 @@
 from sage.all import solve, vector, var
 
 from AES import AES
+from key_substitution import substitute_key_vars
 
 
 class EquationSystem():
@@ -23,7 +24,6 @@ class EquationSystem():
         substitutions = {}
         print "generating substitutions"
         for (i, g) in enumerate(self.base.gens()):
-            #print i, g
             polynomial_number = i % 16
             coefficient_number = i % 8
             key_bit = [x for x in reversed(vector(key_bytes[polynomial_number]))][coefficient_number]
@@ -33,8 +33,9 @@ class EquationSystem():
         print "substitution in progress"
 
         for equation in self.equations:
-            # only substitute variables which exist in the equation
-            result.append(equation.subs(substitutions))#equation.subs(substitutions_part))
+            subs_equation = substitute_key_vars(equation, substitutions, self.base)
+
+            result.append(subs_equation)
         return result
 
     def solve(self):

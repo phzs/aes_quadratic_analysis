@@ -60,12 +60,16 @@ class AESKeySchedule(object):
         assert len(K) == self.key_length
         for i in xrange(self.key_amount*4): # each 128-subkey consists of 4*32bit words
             if i < self.key_length:
+                print "A"
                 result[i] = K[i]
             elif i >= self.key_length and mod(i, self.key_length) == 0:
+                print "B (SBox)", len(result[i - 1]), result[i - 1]
                 result[i] = result[i-self.key_length] + self.RotWord(self.SubWord(result[i - 1])) + self.rcon(i/self.key_length)
             elif i >= self.key_length and self.key_length > 6 and mod(i, self.key_length) == 4:
+                print "C"
                 result[i] = result[i-self.key_length] + self.SubWord(result[i-1])
             else:
+                print "D"
                 result[i] = result[i-self.key_length] + result[i-1]
         return result
 

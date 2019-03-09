@@ -71,6 +71,8 @@ mix_columns_inverse_M = matrix(gf, [
 
 class AES(SageObject):
 
+    sbox_counter = 0
+
     def __init__(self, key=None, rounds=10, block_size=128, debug=False, use_key_schedule=True):
         self.block_size = block_size
         self.key_length = block_size/32 # key length in 32-bit words: AES 128 -> N = 4
@@ -344,6 +346,8 @@ class AES(SageObject):
 
     @staticmethod
     def SubBytes(state):
+        AES.sbox_counter += 1
+
         result = []
         for poly in state:
             if poly != poly.parent(0):
